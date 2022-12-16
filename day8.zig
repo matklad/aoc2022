@@ -6,17 +6,16 @@ pub fn main() !void {
     var buf: [1024]u8 = undefined;
 
     var map = try std.BoundedArray(u8, 65536).init(0);
-    var visible = try std.BoundedArray(bool, 65536).init(0);
+    var score = try std.BoundedArray(isize, 65536).init(0);
     var x_dim: isize = 0;
     var y_dim: isize = 0;
     while (try stdin.readUntilDelimiterOrEof(buf[0..], '\n')) |line| {
         if (line.len == 0) break;
-        std.debug.print("{}\n", .{line.len});
         y_dim += 1;
         x_dim = @intCast(isize, line.len);
         for (line) |char| {
             map.appendAssumeCapacity(char - '0' + 1);
-            visible.appendAssumeCapacity(false);
+            score.appendAssumeCapacity(1);
         }
     }
 
@@ -43,23 +42,36 @@ pub fn main() !void {
                 y_step = 0;
             }
 
-            var tallest: u8 = 0;
             var i: isize = 0;
+            var s_pos: [65536]isize = undefined;
+            var s_height: [65536]u8 = undefined;
+            var s_len: usize = 0;
             while (i < i_lim) : (i += 1) {
                 const x = x_start + i * x_step;
                 const y = y_start + i * y_step;
                 var index = @intCast(usize, x + y * x_dim);
-                if (map.slice()[index] > tallest) {
-                    visible.slice()[index] = true;
-                    tallest = map.slice()[index];
+                const height = map.slice()[index];
+                while (s_len > 0 and s_height[s_len - 1] < height) {
+                    s_len -= 1;
                 }
+                if (s_len == 0) {
+                    score.slice()[index] *= i;
+                } else {
+                    score.slice()[index] *= i - s_pos[s_len - 1];
+                }
+                s_pos[s_len] = i;
+                s_height[s_len] = height;
+                s_len += 1;
             }
         }
     }
 
-    var result: u32 = 0;
-    for (visible.slice()) |v| {
-        if (v) result += 1;
+    var max: isize = 0;
+    for (score.slice()) |v, i| {
+        // if (i % @intCast(usize, x_dim) == 0) std.debug.print("\n", .{});
+        // std.debug.print("{}", .{v});
+        _ = i;
+        max = std.math.max(max, v);
     }
-    try stdout.print("{}\n", .{result});
+    try stdout.print("\n{}\n", .{max});
 }
